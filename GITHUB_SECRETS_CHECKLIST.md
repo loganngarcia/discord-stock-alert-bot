@@ -7,25 +7,25 @@ You need to add **ALL** of these to your GitHub repository secrets:
 ### Required Secrets (Must Add):
 
 1. **`TWELVE_DATA_API_KEY`**
-   - Value: `your_twelve_data_key`
+   - Value: `YOUR_TWELVE_DATA_API_KEY` (get from Twelve Data)
    - Purpose: Access to Twelve Data API for stock quotes
 
 2. **`FMP_API_KEY`**
-   - Value: `your_fmp_key`
+   - Value: `YOUR_FMP_API_KEY` (get from Financial Modeling Prep)
    - Purpose: Access to Financial Modeling Prep API for analyst targets
 
 3. **`DISCORD_BOT_TOKEN`**
-   - Value: `your_discord_bot_token`
+   - Value: `YOUR_DISCORD_BOT_TOKEN` (get from Discord Developer Portal)
    - Purpose: Discord bot authentication token
    - ⚠️ **SECURITY**: Keep this secret! Anyone with this token can control your bot
 
 4. **`DISCORD_CHANNEL_ID`**
-   - Value: `your_channel_id`
+   - Value: `YOUR_DISCORD_CHANNEL_ID` (get from Discord - right-click channel → Copy ID)
    - Purpose: Target Discord channel for alerts
    - Note: This is less sensitive but still good to keep in secrets
 
 5. **`GIST_ID`**
-   - Value: `your_gist_id`
+   - Value: `YOUR_GIST_ID` (create a secret gist and copy the ID from URL)
    - Purpose: GitHub Gist ID for state persistence
 
 6. **`GH_PAT`**

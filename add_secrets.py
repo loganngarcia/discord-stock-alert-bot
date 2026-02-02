@@ -11,13 +11,15 @@ import sys
 import os
 
 # Secrets to add
+# NOTE: Replace these with your actual values from .secrets.local.md
+# This file should NOT contain real secrets - use environment variables or .secrets.local.md
 SECRETS = {
-    "TWELVE_DATA_API_KEY": "your_twelve_data_key",
-    "FMP_API_KEY": "your_fmp_key",
-    "DISCORD_BOT_TOKEN": "your_discord_bot_token",
-    "DISCORD_CHANNEL_ID": "your_channel_id",
-    "GIST_ID": "your_gist_id",
-    "GH_PAT": "YOUR_GITHUB_PAT_TOKEN",  # Replace with your actual token
+    "TWELVE_DATA_API_KEY": "YOUR_TWELVE_DATA_API_KEY",
+    "FMP_API_KEY": "YOUR_FMP_API_KEY",
+    "DISCORD_BOT_TOKEN": "YOUR_DISCORD_BOT_TOKEN",
+    "DISCORD_CHANNEL_ID": "YOUR_DISCORD_CHANNEL_ID",
+    "GIST_ID": "YOUR_GIST_ID",
+    "GH_PAT": "YOUR_GITHUB_PAT_TOKEN",
     "ALERT_THRESHOLD_PCT": "90",
     "HAIRCUT_RATE": "0.125"
 }

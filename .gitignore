@@ -36,6 +36,12 @@ Thumbs.db
 # Secrets reference (contains placeholder values but should stay private)
 QUICK_SECRETS_REFERENCE.md
 
+# Scripts with example secrets (should use placeholders)
+add_secrets.py
+
+# Documentation with example secrets
+GITHUB_SECRETS_CHECKLIST.md
+
 # Logs
 *.log
 
