@@ -1,0 +1,42 @@
+name: Test Discord Connection
+
+on:
+  workflow_dispatch: # Manual trigger only
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test Discord Message
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+        run: |
+          python3 << 'EOF'
+          import requests
+          import os
+          
+          token = os.getenv("DISCORD_BOT_TOKEN")
+          channel_id = os.getenv("DISCORD_CHANNEL_ID")
+          
+          headers = {
+              "Authorization": f"Bot {token}",
+              "Content-Type": "application/json"
+          }
+          
+          payload = {"content": "Hello world!"}
+          
+          response = requests.post(
+              f"https://discord.com/api/v10/channels/{channel_id}/messages",
+              headers=headers,
+              json=payload,
+              timeout=10
+          )
+          
+          if response.status_code == 200:
+              print("✅ SUCCESS! Message sent to Discord!")
+              print(f"Message ID: {response.json().get('id')}")
+          else:
+              print(f"❌ Error {response.status_code}: {response.text}")
+              exit(1)
+          EOF
