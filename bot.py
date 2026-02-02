@@ -1,7 +1,21 @@
 #!/usr/bin/env python3
 """
 Discord Stock Alert Bot
-Monitors US stock market movers and alerts on symbols gaining ≥90% compared to previous close.
+
+A production-ready bot that monitors US stock market movers every 5 minutes during
+market hours (10am-3pm PT, weekdays) and alerts on Discord when symbols gain ≥90%
+compared to their previous close. Includes intelligent analyst target analysis using
+a trimmed-and-haircut algorithm.
+
+Features:
+    - Automated monitoring via GitHub Actions
+    - Smart threshold detection (≥90% gain)
+    - Analyst target analysis with trimmed-and-haircut anchor
+    - Daily deduplication using GitHub Gist
+    - Silent operation (no alerts when no qualifying symbols)
+
+Author: Logan Garcia
+License: MIT
 """
 
 import os
@@ -30,7 +44,24 @@ MARKET_CLOSE_HOUR = 15
 
 
 class GistStateManager:
-    """Manages daily alert state using GitHub Gist."""
+    """
+    Manages daily alert state persistence using GitHub Gist.
+    
+    This class handles reading and writing the bot's state to a GitHub Gist,
+    which tracks which symbols have already been alerted today to prevent
+    duplicate alerts.
+    
+    Attributes:
+        gist_id (str): The GitHub Gist ID for state storage
+        github_token (str): GitHub Personal Access Token with gist scope
+        base_url (str): GitHub API base URL
+        headers (dict): HTTP headers for API requests
+    
+    Example:
+        >>> manager = GistStateManager("gist_id", "ghp_token")
+        >>> state = manager.get_state()
+        >>> manager.update_state({"2026-02-01": ["AAPL", "TSLA"]})
+    """
     
     def __init__(self, gist_id: str, github_token: str):
         self.gist_id = gist_id
@@ -96,7 +127,22 @@ class GistStateManager:
 
 
 class StockDataFetcher:
-    """Fetches stock data from Twelve Data API."""
+    """
+    Fetches stock market data from the Twelve Data API.
+    
+    This class provides methods to retrieve market movers and detailed quote
+    data for individual symbols. Includes fallback logic for when premium
+    endpoints are unavailable.
+    
+    Attributes:
+        api_key (str): Twelve Data API key
+        base_url (str): Twelve Data API base URL
+    
+    Example:
+        >>> fetcher = StockDataFetcher("api_key")
+        >>> symbols = fetcher.get_market_movers()
+        >>> quote = fetcher.get_quote("AAPL")
+    """
     
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -200,7 +246,21 @@ class StockDataFetcher:
 
 
 class AnalystTargetFetcher:
-    """Fetches analyst targets from Financial Modeling Prep API."""
+    """
+    Fetches analyst price targets from Financial Modeling Prep API.
+    
+    Retrieves individual analyst targets and consensus targets for calculating
+    the trimmed-and-haircut anchor price used in alerts.
+    
+    Attributes:
+        api_key (str): Financial Modeling Prep API key
+        base_url (str): FMP API base URL
+    
+    Example:
+        >>> fetcher = AnalystTargetFetcher("api_key")
+        >>> targets = fetcher.get_individual_targets("AAPL")
+        >>> consensus = fetcher.get_consensus_target("AAPL")
+    """
     
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -259,10 +319,35 @@ class AnalystTargetFetcher:
             return None
 
 
-def calculate_anchor(targets: List[float], consensus_fallback: Optional[float], haircut_rate: float) -> Tuple[float, str]:
+def calculate_anchor(
+    targets: List[float], 
+    consensus_fallback: Optional[float], 
+    haircut_rate: float
+) -> Tuple[float, str]:
     """
-    Calculate trimmed-and-haircut anchor.
-    Returns (anchor_value, label) where label is either "trimmed" or "fallback".
+    Calculate trimmed-and-haircut anchor price from analyst targets.
+    
+    Implements a robust anchor calculation algorithm:
+    1. If ≥3 targets: Sort, drop highest/lowest, calculate trimmed mean, apply haircut
+    2. If <3 targets: Use consensus mean, apply haircut
+    3. If no targets: Return 0.0 with "none" label
+    
+    Args:
+        targets: List of individual analyst price targets
+        consensus_fallback: Consensus (mean) target if <3 individual targets
+        haircut_rate: Haircut rate to apply (e.g., 0.125 for 12.5%)
+    
+    Returns:
+        Tuple of (anchor_price, calculation_method) where method is:
+        - "trimmed": Used trimmed mean of ≥3 targets
+        - "fallback": Used consensus mean
+        - "none": No targets available
+    
+    Example:
+        >>> targets = [10.0, 12.0, 15.0, 18.0, 20.0]
+        >>> anchor, method = calculate_anchor(targets, None, 0.125)
+        >>> anchor  # 13.125 (trimmed mean of [12, 15, 18] with 12.5% haircut)
+        >>> method  # "trimmed"
     """
     if len(targets) >= 3:
         # Sort and trim
@@ -280,7 +365,19 @@ def calculate_anchor(targets: List[float], consensus_fallback: Optional[float], 
 
 
 def check_time_window() -> bool:
-    """Check if current time is within market hours (10am-3pm PT) on a weekday."""
+    """
+    Check if current time is within market hours on a weekday.
+    
+    Validates that the current Pacific Time is:
+    - Between 10:00 and 15:00 (10am-3pm)
+    - On a weekday (Monday-Friday)
+    
+    Returns:
+        True if within market hours and weekday, False otherwise
+    
+    Example:
+        >>> check_time_window()  # Returns True if 10am-3pm PT on weekday
+    """
     pt_now = datetime.now(PT_TIMEZONE)
     
     # Check if weekday (Monday=0, Friday=4)
@@ -293,7 +390,38 @@ def check_time_window() -> bool:
 
 
 def format_discord_message(qualifying_symbols: List[Dict]) -> str:
-    """Format Discord message with all qualifying symbols."""
+    """
+    Format Discord alert message with all qualifying symbols.
+    
+    Creates a formatted message containing:
+    - Header with threshold and timestamp
+    - One line per qualifying symbol with:
+      * Symbol ticker
+      * Percentage gain
+      * Current and previous prices
+      * Analyst anchor price
+      * Target count and calculation method
+    
+    Args:
+        qualifying_symbols: List of dicts containing symbol data:
+            - symbol: Stock ticker
+            - pct_change: Percentage gain
+            - last_price: Current price
+            - previous_close: Previous close price
+            - anchor: Calculated anchor price
+            - target_count: Number of analyst targets
+            - anchor_type: Calculation method ("trimmed", "fallback", "none")
+    
+    Returns:
+        Formatted message string ready for Discord
+    
+    Example:
+        >>> symbols = [{"symbol": "ABC", "pct_change": 132.4, ...}]
+        >>> message = format_discord_message(symbols)
+        >>> print(message)
+        ALERT: ≥ 90% movers (10:35 PT)
+        ABC +132.4% | last $2.18 | prev $0.94 | anchor (12.5%) $4.40 | targets 7 (trimmed)
+    """
     pt_now = datetime.now(PT_TIMEZONE)
     time_str = pt_now.strftime("%H:%M")
     
@@ -323,7 +451,25 @@ def format_discord_message(qualifying_symbols: List[Dict]) -> str:
 
 
 def main():
-    """Main execution function."""
+    """
+    Main execution function for the Discord Stock Alert Bot.
+    
+    Orchestrates the complete bot workflow:
+    1. Validates time window (market hours, weekdays)
+    2. Fetches market movers
+    3. Filters symbols by threshold (≥90% gain)
+    4. Calculates analyst anchors
+    5. Checks daily deduplication state
+    6. Posts Discord alerts for qualifying symbols
+    
+    Exits silently if:
+    - Outside market hours
+    - No market movers found
+    - No symbols meet threshold
+    
+    Raises:
+        SystemExit: On critical errors (logged but doesn't crash)
+    """
     # Check time window
     if not check_time_window():
         print("Outside market hours or not a weekday. Exiting silently.")
