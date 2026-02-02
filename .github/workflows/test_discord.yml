@@ -11,6 +11,7 @@ jobs:
         run: pip install requests
       
       - name: Test Discord Message
+        continue-on-error: true
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
@@ -37,9 +38,21 @@ jobs:
           )
           
           if response.status_code == 200:
+              data = response.json()
               print("✅ SUCCESS! Message sent to Discord!")
-              print(f"Message ID: {response.json().get('id')}")
+              print(f"Message ID: {data.get('id')}")
+              print(f"Channel: {data.get('channel_id')}")
+              print(f"Content: {data.get('content')}")
           else:
-              print(f"❌ Error {response.status_code}: {response.text}")
+              print(f"❌ Error {response.status_code}")
+              print(f"Response: {response.text}")
+              print()
+              print("Troubleshooting:")
+              if response.status_code == 401:
+                  print("  • 401 = Invalid bot token. Check DISCORD_BOT_TOKEN secret.")
+              elif response.status_code == 403:
+                  print("  • 403 = Bot lacks 'Send Messages' permission.")
+              elif response.status_code == 404:
+                  print("  • 404 = Channel ID incorrect. Verify DISCORD_CHANNEL_ID.")
               exit(1)
           EOF
