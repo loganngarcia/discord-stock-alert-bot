@@ -7,6 +7,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Install requests
+        run: pip install requests
+      
       - name: Test Discord Message
         env:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
