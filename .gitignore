@@ -33,6 +33,9 @@ Thumbs.db
 # Local secrets file (contains actual values)
 .secrets.local.md
 
+# Secrets reference (contains placeholder values but should stay private)
+QUICK_SECRETS_REFERENCE.md
+
 # Logs
 *.log
 
