@@ -1,0 +1,37 @@
+name: Stock Alert Bot
+
+on:
+  schedule:
+    # Runs every 5 minutes between 10:00am and 3:00pm PT (17:00-23:00 UTC) on weekdays
+    # PT is UTC-8 (PST) or UTC-7 (PDT), so 10am-3pm PT = 17:00-23:00 UTC (PST) or 18:00-00:00 UTC (PDT)
+    # Using 17:00-23:00 UTC covers both PST and PDT
+    - cron: "*/5 17-23 * * 1-5"
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run bot
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          ALERT_THRESHOLD_PCT: ${{ secrets.ALERT_THRESHOLD_PCT }}
+          HAIRCUT_RATE: ${{ secrets.HAIRCUT_RATE }}
+        run: |
+          python bot.py
