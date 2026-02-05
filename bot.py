@@ -592,13 +592,61 @@ def main():
                 json=payload,
                 timeout=10
             )
-            response.raise_for_status()
-            print(f"Posted alert for {len(qualifying_symbols)} symbols to Discord.")
-            return 0
+            
+            # Check response status
+            if response.status_code == 200:
+                data = response.json()
+                message_id = data.get("id")
+                print(f"✅ Posted alert for {len(qualifying_symbols)} symbols to Discord.")
+                print(f"   Message ID: {message_id}")
+                
+                # Verify message was actually posted by fetching it back
+                try:
+                    verify_response = requests.get(
+                        f"https://discord.com/api/v10/channels/{DISCORD_CHANNEL_ID}/messages/{message_id}",
+                        headers=headers,
+                        timeout=10
+                    )
+                    if verify_response.status_code == 200:
+                        verify_data = verify_response.json()
+                        if verify_data.get("id") == message_id:
+                            print(f"✅ Verified: Message confirmed in Discord channel")
+                        else:
+                            print(f"⚠️  WARNING: Message verification returned different ID")
+                    else:
+                        print(f"⚠️  WARNING: Could not verify message (status {verify_response.status_code})")
+                except Exception as verify_error:
+                    print(f"⚠️  WARNING: Could not verify message: {verify_error}")
+                
+                return 0
+            else:
+                # Handle specific error codes
+                error_msg = f"Discord API returned {response.status_code}"
+                if response.status_code == 401:
+                    error_msg += " (Invalid bot token)"
+                elif response.status_code == 403:
+                    error_msg += " (Bot lacks permissions)"
+                elif response.status_code == 404:
+                    error_msg += " (Channel not found)"
+                elif response.status_code == 429:
+                    error_msg += " (Rate limited)"
+                else:
+                    error_msg += f": {response.text[:200]}"
+                
+                print(f"❌ ERROR: Failed to post to Discord - {error_msg}")
+                return 1  # Fail the workflow for Discord errors
+                
+        except requests.exceptions.Timeout:
+            print(f"❌ ERROR: Discord API timeout - message may not have been sent")
+            return 1
+        except requests.exceptions.RequestException as e:
+            print(f"❌ ERROR: Discord API request failed: {e}")
+            return 1
         except Exception as e:
-            print(f"ERROR: Failed to post to Discord: {e}")
-            # Don't fail the workflow for Discord errors - might be temporary
-            return 0
+            print(f"❌ ERROR: Unexpected error posting to Discord: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
             
     except KeyboardInterrupt:
         print("Interrupted by user.")
