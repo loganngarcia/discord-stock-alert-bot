@@ -27,6 +27,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Verify secrets
+        run: |
+          echo "Checking required secrets..."
+          if [ -z "${{ secrets.TWELVE_DATA_API_KEY }}" ]; then echo "❌ TWELVE_DATA_API_KEY missing"; exit 1; fi
+          if [ -z "${{ secrets.FMP_API_KEY }}" ]; then echo "❌ FMP_API_KEY missing"; exit 1; fi
+          if [ -z "${{ secrets.DISCORD_BOT_TOKEN }}" ]; then echo "❌ DISCORD_BOT_TOKEN missing"; exit 1; fi
+          if [ -z "${{ secrets.DISCORD_CHANNEL_ID }}" ]; then echo "❌ DISCORD_CHANNEL_ID missing"; exit 1; fi
+          if [ -z "${{ secrets.GIST_ID }}" ]; then echo "❌ GIST_ID missing"; exit 1; fi
+          if [ -z "${{ secrets.GH_PAT }}" ]; then echo "❌ GH_PAT missing"; exit 1; fi
+          echo "✅ All required secrets present"
+      
       - name: Run bot
         env:
           TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
@@ -35,7 +46,7 @@ jobs:
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
           GIST_ID: ${{ secrets.GIST_ID }}
           GH_PAT: ${{ secrets.GH_PAT }}
-          ALERT_THRESHOLD_PCT: ${{ secrets.ALERT_THRESHOLD_PCT }}
-          HAIRCUT_RATE: ${{ secrets.HAIRCUT_RATE }}
+          ALERT_THRESHOLD_PCT: ${{ secrets.ALERT_THRESHOLD_PCT || '90' }}
+          HAIRCUT_RATE: ${{ secrets.HAIRCUT_RATE || '0.125' }}
         run: |
           python bot.py

@@ -34,8 +34,11 @@ DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "")
 DISCORD_CHANNEL_ID = os.getenv("DISCORD_CHANNEL_ID", "")
 GIST_ID = os.getenv("GIST_ID", "")
 GH_PAT = os.getenv("GH_PAT", "")
-ALERT_THRESHOLD_PCT = float(os.getenv("ALERT_THRESHOLD_PCT", "90"))
-HAIRCUT_RATE = float(os.getenv("HAIRCUT_RATE", "0.125"))
+# Handle optional env vars - use defaults if empty or missing
+_alert_threshold = os.getenv("ALERT_THRESHOLD_PCT", "90").strip()
+_haircut_rate = os.getenv("HAIRCUT_RATE", "0.125").strip()
+ALERT_THRESHOLD_PCT = float(_alert_threshold) if _alert_threshold else 90.0
+HAIRCUT_RATE = float(_haircut_rate) if _haircut_rate else 0.125
 
 # Constants
 PT_TIMEZONE = pytz.timezone("America/Los_Angeles")
@@ -484,7 +487,10 @@ def main():
         missing_vars = [var for var, value in required_vars.items() if not value]
         if missing_vars:
             print(f"ERROR: Missing required environment variables: {', '.join(missing_vars)}")
+            print("Please ensure all required secrets are set in GitHub Actions.")
             return 1
+        
+        print(f"✅ Configuration loaded: threshold={ALERT_THRESHOLD_PCT}%, haircut={HAIRCUT_RATE*100:.1f}%")
         
         # Check time window
         if not check_time_window():
