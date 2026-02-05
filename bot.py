@@ -516,6 +516,7 @@ def main():
             print("No market movers found. Exiting silently.")
             return 0
         print(f"📊 Found {len(symbols)} market movers to check")
+        print(f"   Symbols: {', '.join(symbols[:10])}{'...' if len(symbols) > 10 else ''}")
         
         # Process each symbol
         qualifying_symbols = []
