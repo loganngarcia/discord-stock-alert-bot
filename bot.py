@@ -515,14 +515,19 @@ def main():
         if not symbols:
             print("No market movers found. Exiting silently.")
             return 0
+        print(f"📊 Found {len(symbols)} market movers to check")
         
         # Process each symbol
         qualifying_symbols = []
         new_alerts = []
+        checked_count = 0
+        skipped_already_alerted = 0
+        skipped_below_threshold = 0
         
         for symbol in symbols:
             # Skip if already alerted today
             if symbol in alerted_today:
+                skipped_already_alerted += 1
                 continue
             
             # Get quote data
@@ -530,6 +535,7 @@ def main():
             if not quote_data:
                 continue
             
+            checked_count += 1
             previous_close = quote_data["previous_close"]
             last_price = quote_data["last_price"]
             
@@ -538,6 +544,7 @@ def main():
             
             # Check threshold
             if pct_change < ALERT_THRESHOLD_PCT:
+                skipped_below_threshold += 1
                 continue
             
             # Get analyst targets
@@ -564,8 +571,17 @@ def main():
         
         # If no qualifying symbols, exit silently
         if not qualifying_symbols:
+            print(f"📊 Summary: Checked {checked_count} symbols")
+            print(f"   - Already alerted today: {skipped_already_alerted}")
+            print(f"   - Below {ALERT_THRESHOLD_PCT}% threshold: {skipped_below_threshold}")
+            print(f"   - Qualifying symbols: 0")
             print("No symbols meet threshold. Exiting silently.")
             return 0
+        
+        print(f"📊 Summary: Checked {checked_count} symbols")
+        print(f"   - Already alerted today: {skipped_already_alerted}")
+        print(f"   - Below {ALERT_THRESHOLD_PCT}% threshold: {skipped_below_threshold}")
+        print(f"   - Qualifying symbols: {len(qualifying_symbols)}")
         
         # Update state
         if today_str not in state:
