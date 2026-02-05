@@ -467,113 +467,142 @@ def main():
     - No market movers found
     - No symbols meet threshold
     
-    Raises:
-        SystemExit: On critical errors (logged but doesn't crash)
+    Returns:
+        0 on success or expected silent exits, 1 on critical errors
     """
-    # Check time window
-    if not check_time_window():
-        print("Outside market hours or not a weekday. Exiting silently.")
-        return
-    
-    # Initialize components
-    state_manager = GistStateManager(GIST_ID, GH_PAT)
-    stock_fetcher = StockDataFetcher(TWELVE_DATA_API_KEY)
-    analyst_fetcher = AnalystTargetFetcher(FMP_API_KEY)
-    
-    # Get today's date string
-    pt_now = datetime.now(PT_TIMEZONE)
-    today_str = pt_now.strftime("%Y-%m-%d")
-    
-    # Load state
-    state = state_manager.get_state()
-    alerted_today = set(state.get(today_str, []))
-    
-    # Get market movers
-    symbols = stock_fetcher.get_market_movers()
-    if not symbols:
-        print("No market movers found. Exiting silently.")
-        return
-    
-    # Process each symbol
-    qualifying_symbols = []
-    new_alerts = []
-    
-    for symbol in symbols:
-        # Skip if already alerted today
-        if symbol in alerted_today:
-            continue
-        
-        # Get quote data
-        quote_data = stock_fetcher.get_quote(symbol)
-        if not quote_data:
-            continue
-        
-        previous_close = quote_data["previous_close"]
-        last_price = quote_data["last_price"]
-        
-        # Calculate percentage change
-        pct_change = ((last_price - previous_close) / previous_close) * 100
-        
-        # Check threshold
-        if pct_change < ALERT_THRESHOLD_PCT:
-            continue
-        
-        # Get analyst targets
-        individual_targets = analyst_fetcher.get_individual_targets(symbol)
-        consensus_target = None
-        if len(individual_targets) < 3:
-            consensus_target = analyst_fetcher.get_consensus_target(symbol)
-        
-        # Calculate anchor
-        anchor, anchor_type = calculate_anchor(individual_targets, consensus_target, HAIRCUT_RATE)
-        
-        # Store qualifying symbol
-        qualifying_symbols.append({
-            "symbol": symbol,
-            "pct_change": pct_change,
-            "last_price": last_price,
-            "previous_close": previous_close,
-            "anchor": anchor,
-            "target_count": len(individual_targets),
-            "anchor_type": anchor_type
-        })
-        
-        new_alerts.append(symbol)
-    
-    # If no qualifying symbols, exit silently
-    if not qualifying_symbols:
-        print("No symbols meet threshold. Exiting silently.")
-        return
-    
-    # Update state
-    if today_str not in state:
-        state[today_str] = []
-    state[today_str].extend(new_alerts)
-    state_manager.update_state(state)
-    
-    # Post to Discord
-    message = format_discord_message(qualifying_symbols)
-    
     try:
-        # Use Discord REST API to send message
-        headers = {
-            "Authorization": f"Bot {DISCORD_BOT_TOKEN}",
-            "Content-Type": "application/json"
+        # Validate required environment variables
+        required_vars = {
+            "TWELVE_DATA_API_KEY": TWELVE_DATA_API_KEY,
+            "FMP_API_KEY": FMP_API_KEY,
+            "DISCORD_BOT_TOKEN": DISCORD_BOT_TOKEN,
+            "DISCORD_CHANNEL_ID": DISCORD_CHANNEL_ID,
+            "GIST_ID": GIST_ID,
+            "GH_PAT": GH_PAT,
         }
-        payload = {
-            "content": message
-        }
-        response = requests.post(
-            f"https://discord.com/api/v10/channels/{DISCORD_CHANNEL_ID}/messages",
-            headers=headers,
-            json=payload,
-            timeout=10
-        )
-        response.raise_for_status()
-        print(f"Posted alert for {len(qualifying_symbols)} symbols to Discord.")
+        
+        missing_vars = [var for var, value in required_vars.items() if not value]
+        if missing_vars:
+            print(f"ERROR: Missing required environment variables: {', '.join(missing_vars)}")
+            return 1
+        
+        # Check time window
+        if not check_time_window():
+            print("Outside market hours or not a weekday. Exiting silently.")
+            return 0
+        
+        # Initialize components
+        state_manager = GistStateManager(GIST_ID, GH_PAT)
+        stock_fetcher = StockDataFetcher(TWELVE_DATA_API_KEY)
+        analyst_fetcher = AnalystTargetFetcher(FMP_API_KEY)
+        
+        # Get today's date string
+        pt_now = datetime.now(PT_TIMEZONE)
+        today_str = pt_now.strftime("%Y-%m-%d")
+        
+        # Load state
+        state = state_manager.get_state()
+        alerted_today = set(state.get(today_str, []))
+        
+        # Get market movers
+        symbols = stock_fetcher.get_market_movers()
+        if not symbols:
+            print("No market movers found. Exiting silently.")
+            return 0
+        
+        # Process each symbol
+        qualifying_symbols = []
+        new_alerts = []
+        
+        for symbol in symbols:
+            # Skip if already alerted today
+            if symbol in alerted_today:
+                continue
+            
+            # Get quote data
+            quote_data = stock_fetcher.get_quote(symbol)
+            if not quote_data:
+                continue
+            
+            previous_close = quote_data["previous_close"]
+            last_price = quote_data["last_price"]
+            
+            # Calculate percentage change
+            pct_change = ((last_price - previous_close) / previous_close) * 100
+            
+            # Check threshold
+            if pct_change < ALERT_THRESHOLD_PCT:
+                continue
+            
+            # Get analyst targets
+            individual_targets = analyst_fetcher.get_individual_targets(symbol)
+            consensus_target = None
+            if len(individual_targets) < 3:
+                consensus_target = analyst_fetcher.get_consensus_target(symbol)
+            
+            # Calculate anchor
+            anchor, anchor_type = calculate_anchor(individual_targets, consensus_target, HAIRCUT_RATE)
+            
+            # Store qualifying symbol
+            qualifying_symbols.append({
+                "symbol": symbol,
+                "pct_change": pct_change,
+                "last_price": last_price,
+                "previous_close": previous_close,
+                "anchor": anchor,
+                "target_count": len(individual_targets),
+                "anchor_type": anchor_type
+            })
+            
+            new_alerts.append(symbol)
+        
+        # If no qualifying symbols, exit silently
+        if not qualifying_symbols:
+            print("No symbols meet threshold. Exiting silently.")
+            return 0
+        
+        # Update state
+        if today_str not in state:
+            state[today_str] = []
+        state[today_str].extend(new_alerts)
+        if not state_manager.update_state(state):
+            print("WARNING: Failed to update Gist state, but continuing with Discord post.")
+        
+        # Post to Discord
+        message = format_discord_message(qualifying_symbols)
+        
+        try:
+            # Use Discord REST API to send message
+            headers = {
+                "Authorization": f"Bot {DISCORD_BOT_TOKEN}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "content": message
+            }
+            response = requests.post(
+                f"https://discord.com/api/v10/channels/{DISCORD_CHANNEL_ID}/messages",
+                headers=headers,
+                json=payload,
+                timeout=10
+            )
+            response.raise_for_status()
+            print(f"Posted alert for {len(qualifying_symbols)} symbols to Discord.")
+            return 0
+        except Exception as e:
+            print(f"ERROR: Failed to post to Discord: {e}")
+            # Don't fail the workflow for Discord errors - might be temporary
+            return 0
+            
+    except KeyboardInterrupt:
+        print("Interrupted by user.")
+        return 1
     except Exception as e:
-        print(f"Error posting to Discord: {e}")
+        print(f"CRITICAL ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())
