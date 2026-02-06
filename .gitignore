@@ -48,3 +48,18 @@ GITHUB_SECRETS_CHECKLIST.md
 # Temporary files
 *.tmp
 *.bak
+
+# Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+*.xcuserdata/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.swiftpm
+.build/

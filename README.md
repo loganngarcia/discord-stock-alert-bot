@@ -1,290 +1,105 @@
-# Discord Stock Alert Bot
+# Stockup - macOS Stock Alert App
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+A beautiful macOS SwiftUI application for monitoring stock alerts with a native liquid glass interface.
 
-> A production-ready Discord bot that monitors US stock market movers and alerts on symbols gaining ≥90% compared to their previous close, with intelligent analyst target analysis.
+## Features
 
-## 🚀 Quick Start
+✅ **Native Liquid Glass Interface** - Uses `NSVisualEffectView` for authentic macOS frosted glass effect  
+✅ **Bottom Center Slider** - Percentage threshold slider (0-20%) with saved state using `@AppStorage`  
+✅ **Stock List** - Sortable table with multiple time periods (1D, 1W, 1M, 6M, YTD, 1YR, 5YR, MAX)  
+✅ **Free API Integration** - Uses Yahoo Finance API (no API key required)  
+✅ **Apple Design System** - Proper macOS design patterns and colors  
+✅ **Real Company Names** - Fetches actual brand names from multiple free APIs  
+✅ **Clean Names** - Automatically removes corporate suffixes (Inc., Corp., Limited, etc.) and trailing commas
 
-```bash
-# Clone the repository
-git clone https://github.com/loganngarcia/discord-stock-alert-bot.git
-cd discord-stock-alert-bot
+## Quick Start
 
-# Install dependencies
-pip install -r requirements.txt
+### Option 1: Open in Xcode (Recommended)
 
-# Set up environment variables (see Configuration section)
-export TWELVE_DATA_API_KEY="your_key"
-export FMP_API_KEY="your_key"
-# ... (see full list in docs/CONFIGURATION.md)
+1. Double-click `Stockup.xcodeproj` to open in Xcode
+2. Press `⌘R` to build and run
+3. The app will launch automatically
 
-# Run tests
-pytest test_bot.py -v
-
-# Run locally (will exit silently outside market hours)
-python bot.py
-```
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Deployment](#-deployment)
-- [Usage](#-usage)
-- [Development](#-development)
-- [Contributing](#-contributing)
-- [License](#-license)
-
-## ✨ Features
-
-- **🎯 Smart Threshold Detection**: Only alerts on symbols gaining ≥90% compared to previous close
-- **📊 Analyst Target Analysis**: Calculates trimmed-and-haircut anchor from analyst price targets
-- **🔄 Daily Deduplication**: Each symbol alerts only once per day using GitHub Gist state persistence
-- **⏰ Market Hours Only**: Automatically runs during trading hours (10am-3pm PT, weekdays)
-- **🔇 Silent Operation**: Exits silently if no symbols meet threshold (no unnecessary Discord messages)
-- **☁️ Cloud-Hosted**: Runs automatically via GitHub Actions every 5 minutes
-- **🧪 Fully Tested**: Comprehensive test suite with 100% coverage of core logic
-
-## 🏗️ Architecture
-
-```
-discord-stock-alert-bot/
-├── bot.py                 # Main bot implementation
-├── test_bot.py            # Test suite
-├── requirements.txt       # Python dependencies
-├── .github/
-│   └── workflows/
-│       └── stock_alert.yml  # GitHub Actions workflow
-├── docs/
-│   ├── ARCHITECTURE.md    # System architecture documentation
-│   ├── API.md             # API integration details
-│   └── CONFIGURATION.md   # Configuration guide
-└── README.md              # This file
-```
-
-### Core Components
-
-1. **StockDataFetcher**: Fetches market movers and quote data from Twelve Data API
-2. **AnalystTargetFetcher**: Retrieves analyst price targets from Financial Modeling Prep
-3. **GistStateManager**: Manages daily alert state persistence via GitHub Gist
-4. **Anchor Calculator**: Implements trimmed-and-haircut algorithm for price targets
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
-
-## 📦 Installation
-
-### Prerequisites
-
-- Python 3.11 or higher
-- GitHub account with Personal Access Token (PAT) with `gist` scope
-- Discord bot token and channel ID
-- API keys:
-  - [Twelve Data API](https://twelvedata.com/) key
-  - [Financial Modeling Prep](https://site.financialmodelingprep.com/) API key
-
-### Step-by-Step Setup
-
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/loganngarcia/discord-stock-alert-bot.git
-   cd discord-stock-alert-bot
-   ```
-
-2. **Create a virtual environment** (recommended):
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set up GitHub Gist for state persistence**:
-   - Go to https://gist.github.com
-   - Create a new **secret** gist
-   - Add a file named `state.json` with content: `{}`
-   - Copy the Gist ID from the URL
-
-5. **Configure Discord Bot**:
-   - Create a bot at https://discord.com/developers/applications
-   - Copy the bot token
-   - Get your channel ID (right-click channel → Copy ID in Developer Mode)
-   - Invite bot to server with "Send Messages" permission
-
-6. **Set up GitHub Secrets**:
-   - Go to repository Settings → Secrets and variables → Actions
-   - Add all required secrets (see [Configuration](#-configuration))
-
-See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed configuration instructions.
-
-## ⚙️ Configuration
-
-All configuration is done via environment variables (set as GitHub Secrets for production):
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `TWELVE_DATA_API_KEY` | Twelve Data API key | ✅ | - |
-| `FMP_API_KEY` | Financial Modeling Prep API key | ✅ | - |
-| `DISCORD_BOT_TOKEN` | Discord bot token | ✅ | - |
-| `DISCORD_CHANNEL_ID` | Discord channel ID | ✅ | - |
-| `GIST_ID` | GitHub Gist ID for state | ✅ | - |
-| `GH_PAT` | GitHub Personal Access Token | ✅ | - |
-| `ALERT_THRESHOLD_PCT` | Minimum % gain to alert | ❌ | `90` |
-| `HAIRCUT_RATE` | Haircut rate for anchor (0.125 = 12.5%) | ❌ | `0.125` |
-
-## 🚢 Deployment
-
-The bot runs automatically via GitHub Actions:
-
-- **Schedule**: Every 5 minutes between 10:00am-3:00pm PT on weekdays
-- **Cron**: `*/5 17-23 * * 1-5` (UTC timezone)
-- **Manual Trigger**: Available via GitHub Actions UI (`workflow_dispatch`)
-
-The workflow automatically:
-1. Checks out the code
-2. Sets up Python 3.11
-3. Installs dependenciesok
-4. Runs the bot with secrets from GitHub Secrets
-
-See [.github/workflows/stock_alert.yml](.github/workflows/stock_alert.yml) for the workflow configuration.
-
-## 💻 Usage
-
-### Local Development
+### Option 2: Build from Command Line
 
 ```bash
-# Set environment variables
-export TWELVE_DATA_API_KEY="your_key"
-export FMP_API_KEY="your_key"
-export DISCORD_BOT_TOKEN="your_token"
-export DISCORD_CHANNEL_ID="your_channel_id"
-export GIST_ID="your_gist_id"
-export GH_PAT="your_pat"
-
-# Run the bot
-python bot.py
-
-# Run tests
-pytest test_bot.py -v
-
-# Run with verbose output
-python bot.py --verbose  # (if implemented)
+xcodebuild -project Stockup.xcodeproj -scheme Stockup -configuration Debug build
+open /Users/logangarcia/Library/Developer/Xcode/DerivedData/Stockup-*/Build/Products/Debug/Stockup.app
 ```
 
-### Message Format
-
-When a symbol meets the threshold, the bot posts a formatted message:
-
-```
-ALERT: ≥ 90% movers (10:35 PT)
-ABC +132.4% | last $2.18 | prev $0.94 | anchor (12.5%) $4.40 | targets 7 (trimmed)
-XYZ +91.0% | last $1.02 | prev $0.53 | anchor (12.5%) $1.80 | targets 3 (fallback)
-```
-
-**Message Components**:
-- **Header**: Threshold and timestamp in Pacific Time
-- **Symbol**: Stock ticker
-- **Percentage Gain**: Current gain vs previous close
-- **Last Price**: Current market price
-- **Previous Close**: Previous day's closing price
-- **Anchor**: Trimmed-and-haircut analyst target price
-- **Targets**: Number of analyst targets and calculation method
-
-## 🧪 Development
-
-### Running Tests
-
-```bash
-# Run all tests
-pytest test_bot.py -v
-
-# Run with coverage
-pytest test_bot.py --cov=bot --cov-report=html
-
-# Run specific test
-pytest test_bot.py::test_threshold_alert_trigger -v
-```
-
-### Code Style
-
-This project follows PEP 8 style guidelines. Consider using:
-- `black` for code formatting
-- `flake8` or `pylint` for linting
-- `mypy` for type checking
-
-### Project Structure
+## Project Structure
 
 ```
 .
-├── bot.py                    # Main bot implementation
-├── test_bot.py              # Test suite
-├── requirements.txt         # Python dependencies
-├── .github/
-│   └── workflows/
-│       └── stock_alert.yml  # CI/CD workflow
-├── docs/                    # Documentation
-│   ├── ARCHITECTURE.md
-│   ├── API.md
-│   └── CONFIGURATION.md
-└── README.md                # This file
+├── StockupApp.swift      # App entry point
+├── ContentView.swift      # Main view with liquid glass background and sortable table
+├── StockRowView.swift     # Individual stock row component (legacy)
+├── Stock.swift            # Data model (Identifiable, Codable)
+├── StockViewModel.swift   # View model & API integration
+├── Stockup.xcodeproj/     # Xcode project file
+├── README.md              # This file
+└── discord_stock_alert_bot/  # Discord bot subfolder (see below)
 ```
 
-## 🤝 Contributing
+## Architecture
 
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on:
+- **SwiftUI** - Modern declarative UI framework
+- **MVVM Pattern** - `StockViewModel` manages state and API calls
+- **Async/Await** - Modern Swift concurrency for API calls
+- **@AppStorage** - Persistent user preferences (threshold percentage, time period)
+- **@Published** - Reactive data binding
+- **Table Component** - Native SwiftUI Table with sortable columns
 
-- Code of conduct
-- Development setup
-- Pull request process
-- Coding standards
+## API Details
 
-## 📝 License
+- **Yahoo Finance API** - Free, no authentication required
+  - Chart endpoint: `https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}`
+  - Quote Summary: `https://query2.finance.yahoo.com/v10/finance/quoteSummary/{SYMBOL}`
+  - Search: `https://query1.finance.yahoo.com/v1/finance/search`
+- **Company Name APIs** - Multiple fallback sources:
+  - Yahoo Finance (assetProfile, quoteType, chart metadata, search)
+  - Alpha Vantage (company overview)
+  - Polygon.io (ticker details)
+- **Logo APIs** - IEX Cloud, EOD Historical Data, Clearbit
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Requirements
 
-## 🙏 Acknowledgments
+- macOS 13.0 or later
+- Xcode 14.0 or later
+- Swift 5.0+
 
-- [Twelve Data](https://twelvedata.com/) for market data API
-- [Financial Modeling Prep](https://site.financialmodelingprep.com/) for analyst target data
-- Discord for the bot platform
+## Building
 
-## 📚 Documentation
+The project is configured with:
+- **Deployment Target**: macOS 13.0
+- **Swift Version**: 5.0
+- **Bundle Identifier**: `com.stockup.app`
+- **Code Signing**: Automatic (Sign to Run Locally)
 
-- [Architecture Documentation](docs/ARCHITECTURE.md)
-- [API Integration Guide](docs/API.md)
-- [Configuration Guide](docs/CONFIGURATION.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
+## Usage
 
-## 🐛 Troubleshooting
+1. Launch the app
+2. Select a time period using the segmented control at the top (1D, 1W, 1M, etc.)
+3. Adjust the threshold slider at the bottom (0-20%)
+4. View stocks filtered by the selected percentage threshold
+5. Click column headers to sort by different values
+6. Each stock shows:
+   - Company logo
+   - Company name and ticker symbol
+   - % Change (for selected time period)
+   - Market Cap
+   - Current Price
+   - Analyst Target
+   - Diff (percentage difference between price and analyst target)
 
-### Bot doesn't send messages
+## Notes
 
-1. Check that all secrets are set in GitHub Secrets
-2. Verify Discord bot token is valid
-3. Ensure bot has "Send Messages" permission in channel
-4. Check GitHub Actions logs for errors
+- The app fetches market movers from Yahoo Finance screener
+- Falls back to comprehensive stock list if screener is unavailable
+- Company names are cleaned automatically (removes Inc., Corp., Limited, etc. and trailing commas)
+- Multiple API fallbacks ensure every stock has a brand name
+- Threshold and time period preferences are saved automatically using UserDefaults
 
-### No symbols triggering alerts
+## Discord Bot
 
-- This is normal! The bot only alerts on ≥90% gains, which are rare
-- Check that APIs are working: `python bot.py` should run without errors
-- Verify market hours: Bot only runs 10am-3pm PT on weekdays
-
-### API errors
-
-- Check API keys are valid and have sufficient quota
-- Twelve Data market movers endpoint requires paid plan (bot falls back to popular stocks)
-- FMP API may require valid subscription
-
-See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for more troubleshooting tips.
-
----
-
-**Made with ❤️ for the trading community**
+This repository also includes a Discord bot for stock alerts. See [discord_stock_alert_bot/README.md](./discord_stock_alert_bot/README.md) for details.

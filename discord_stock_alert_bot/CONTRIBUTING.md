@@ -36,13 +36,13 @@ This project adheres to a code of conduct that all contributors are expected to 
 
 2. **Clone your fork**:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/discord-stock-alert-bot.git
-   cd discord-stock-alert-bot
+   git clone https://github.com/YOUR_USERNAME/stockup-app.git
+   cd stockup-app/discord_stock_alert_bot
    ```
 
 3. **Add upstream remote**:
    ```bash
-   git remote add upstream https://github.com/loganngarcia/discord-stock-alert-bot.git
+   git remote add upstream https://github.com/loganngarcia/stockup-app.git
    ```
 
 4. **Create a virtual environment**:

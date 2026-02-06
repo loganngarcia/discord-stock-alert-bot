@@ -1,0 +1,58 @@
+name: Test Discord Connection
+
+on:
+  workflow_dispatch: # Manual trigger only
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install requests
+        run: pip install requests
+      
+      - name: Test Discord Message
+        continue-on-error: true
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+        run: |
+          python3 << 'EOF'
+          import requests
+          import os
+          
+          token = os.getenv("DISCORD_BOT_TOKEN")
+          channel_id = os.getenv("DISCORD_CHANNEL_ID")
+          
+          headers = {
+              "Authorization": f"Bot {token}",
+              "Content-Type": "application/json"
+          }
+          
+          payload = {"content": "Hello world!"}
+          
+          response = requests.post(
+              f"https://discord.com/api/v10/channels/{channel_id}/messages",
+              headers=headers,
+              json=payload,
+              timeout=10
+          )
+          
+          if response.status_code == 200:
+              data = response.json()
+              print("✅ SUCCESS! Message sent to Discord!")
+              print(f"Message ID: {data.get('id')}")
+              print(f"Channel: {data.get('channel_id')}")
+              print(f"Content: {data.get('content')}")
+          else:
+              print(f"❌ Error {response.status_code}")
+              print(f"Response: {response.text}")
+              print()
+              print("Troubleshooting:")
+              if response.status_code == 401:
+                  print("  • 401 = Invalid bot token. Check DISCORD_BOT_TOKEN secret.")
+              elif response.status_code == 403:
+                  print("  • 403 = Bot lacks 'Send Messages' permission.")
+              elif response.status_code == 404:
+                  print("  • 404 = Channel ID incorrect. Verify DISCORD_CHANNEL_ID.")
+              exit(1)
+          EOF

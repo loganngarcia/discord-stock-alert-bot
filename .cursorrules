@@ -1,0 +1,84 @@
+# Stockup - Product Requirements & Development Guidelines
+
+## Product Vision
+
+Stockup is a macOS-native stock monitoring application that provides real-time stock alerts with a beautiful, native interface. The app prioritizes user experience, reliability, and native macOS design patterns.
+
+## Core Principles
+
+### Native macOS Experience
+- Use native SwiftUI components and macOS design patterns
+- Implement native liquid glass using native APIs
+- Follow Apple's Human Interface Guidelines
+- Prioritize system colors and native styling over custom designs
+
+### Free & Open APIs
+- Only use free APIs that don't require authentication or API keys
+- Implement multiple fallback strategies for reliability
+- Never depend on a single API provider
+- Gracefully handle API failures without breaking the user experience
+
+### Performance & Responsiveness
+- Never block the UI thread
+- Provide progressive loading and updates
+- Use modern Swift concurrency (async/await)
+- Implement appropriate timeouts and error handling
+
+### Data Quality
+- Clean and normalize data before displaying (e.g., remove corporate suffixes, trailing commas)
+- Provide realistic fallback data when APIs fail
+- Ensure every stock has a proper company name (use multiple sources)
+- Validate and sanitize all user-facing data
+
+## User Experience Priorities
+
+1. **Responsive Interface** - UI should update progressively as data loads
+2. **Persistent Preferences** - User settings should be saved automatically
+3. **Intuitive Interactions** - Native controls and behaviors users expect
+4. **Visual Clarity** - Clean, readable data presentation
+5. **Error Resilience** - App should never crash; always provide fallbacks
+
+## Technical Approach
+
+### Architecture
+- Follow MVVM pattern for separation of concerns
+- Use ObservableObject for reactive state management
+- Leverage @AppStorage for user preferences
+- Keep business logic separate from UI
+
+### API Integration
+- Implement parallel fetching where beneficial
+- Use short timeouts to prevent UI blocking
+- Always have fallback data sources
+- Handle rate limiting gracefully
+
+### Code Quality
+- Write clean, maintainable code
+- Use appropriate abstractions
+- Document complex logic
+- Keep functions focused and testable
+
+## What to Avoid
+
+- Custom UI frameworks or third-party SwiftUI libraries
+- Paid APIs or services requiring API keys
+- Hardcoded data that should come from APIs
+- Blocking synchronous operations
+- Custom components when native ones exist
+- Storing sensitive data in code
+
+## Development Philosophy
+
+- **Native First** - Always prefer native macOS solutions
+- **Free APIs** - Never require paid services
+- **Graceful Degradation** - Always have fallbacks
+- **User Experience** - Progressive loading, responsive UI, saved preferences
+- **Maintainability** - Clean code, clear structure, good documentation
+
+## Project Structure
+
+The repository contains:
+- Main macOS app (Stockup) at root level
+- Discord bot subfolder (`discord_stock_alert_bot/`) - separate Python project
+
+When making changes, consider the impact on both projects and maintain clear separation.
