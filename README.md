@@ -1,105 +1,116 @@
 # Stockup - macOS Stock Alert App
 
-A beautiful macOS SwiftUI application for monitoring stock alerts with a native liquid glass interface.
+> A beautiful, native macOS app for tracking stock market movers with real-time alerts and an elegant liquid glass interface.
 
-## Features
+[![macOS](https://img.shields.io/badge/macOS-13.0+-blue.svg)](https://www.apple.com/macos/)
+[![Swift](https://img.shields.io/badge/Swift-5.0+-orange.svg)](https://swift.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-✅ **Native Liquid Glass Interface** - Uses `NSVisualEffectView` for authentic macOS frosted glass effect  
-✅ **Bottom Center Slider** - Percentage threshold slider (0-20%) with saved state using `@AppStorage`  
-✅ **Stock List** - Sortable table with multiple time periods (1D, 1W, 1M, 6M, YTD, 1YR, 5YR, MAX)  
-✅ **Free API Integration** - Uses Yahoo Finance API (no API key required)  
-✅ **Apple Design System** - Proper macOS design patterns and colors  
-✅ **Real Company Names** - Fetches actual brand names from multiple free APIs  
-✅ **Clean Names** - Automatically removes corporate suffixes (Inc., Corp., Limited, etc.) and trailing commas
+Stockup helps you stay on top of the stock market with a clean, native macOS experience. Track movers across multiple time periods, filter by percentage thresholds, and get real-time data—all without any API keys or subscriptions.
 
-## Quick Start
+## ✨ Features
 
-### Option 1: Open in Xcode (Recommended)
+- 🎨 **Native Liquid Glass Interface** - Authentic macOS frosted glass design using native APIs
+- 📊 **Sortable Stock Table** - Click any column to sort by price, change, market cap, and more
+- ⏱️ **Multiple Time Periods** - View performance across 1D, 1W, 1M, 6M, YTD, 1YR, 5YR, or MAX
+- 🎚️ **Custom Threshold Filter** - Set your own percentage threshold (0-20%) to focus on what matters
+- 🏢 **Real Company Names** - Automatically fetches and cleans company names from multiple free sources
+- 💾 **Persistent Preferences** - Your settings are saved automatically
+- 🚀 **100% Free** - No API keys, no subscriptions, no hidden costs
 
-1. Double-click `Stockup.xcodeproj` to open in Xcode
-2. Press `⌘R` to build and run
-3. The app will launch automatically
+## 🚀 Quick Start
 
-### Option 2: Build from Command Line
+### Download & Build
 
-```bash
-xcodebuild -project Stockup.xcodeproj -scheme Stockup -configuration Debug build
-open /Users/logangarcia/Library/Developer/Xcode/DerivedData/Stockup-*/Build/Products/Debug/Stockup.app
-```
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/loganngarcia/stockup-app.git
+   cd stockup-app
+   ```
 
-## Project Structure
+2. **Open in Xcode**
+   - Double-click `Stockup.xcodeproj`
+   - Press `⌘R` to build and run
 
-```
-.
-├── StockupApp.swift      # App entry point
-├── ContentView.swift      # Main view with liquid glass background and sortable table
-├── StockRowView.swift     # Individual stock row component (legacy)
-├── Stock.swift            # Data model (Identifiable, Codable)
-├── StockViewModel.swift   # View model & API integration
-├── Stockup.xcodeproj/     # Xcode project file
-├── README.md              # This file
-└── discord_stock_alert_bot/  # Discord bot subfolder (see below)
-```
+3. **That's it!** The app will launch automatically.
 
-## Architecture
-
-- **SwiftUI** - Modern declarative UI framework
-- **MVVM Pattern** - `StockViewModel` manages state and API calls
-- **Async/Await** - Modern Swift concurrency for API calls
-- **@AppStorage** - Persistent user preferences (threshold percentage, time period)
-- **@Published** - Reactive data binding
-- **Table Component** - Native SwiftUI Table with sortable columns
-
-## API Details
-
-- **Yahoo Finance API** - Free, no authentication required
-  - Chart endpoint: `https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}`
-  - Quote Summary: `https://query2.finance.yahoo.com/v10/finance/quoteSummary/{SYMBOL}`
-  - Search: `https://query1.finance.yahoo.com/v1/finance/search`
-- **Company Name APIs** - Multiple fallback sources:
-  - Yahoo Finance (assetProfile, quoteType, chart metadata, search)
-  - Alpha Vantage (company overview)
-  - Polygon.io (ticker details)
-- **Logo APIs** - IEX Cloud, EOD Historical Data, Clearbit
-
-## Requirements
+### Requirements
 
 - macOS 13.0 or later
-- Xcode 14.0 or later
-- Swift 5.0+
+- Xcode 14.0 or later (for building from source)
 
-## Building
+## 📸 Screenshots
 
-The project is configured with:
-- **Deployment Target**: macOS 13.0
-- **Swift Version**: 5.0
-- **Bundle Identifier**: `com.stockup.app`
-- **Code Signing**: Automatic (Sign to Run Locally)
+*Coming soon - screenshots of the beautiful interface*
 
-## Usage
+## 🎯 How It Works
 
-1. Launch the app
-2. Select a time period using the segmented control at the top (1D, 1W, 1M, etc.)
-3. Adjust the threshold slider at the bottom (0-20%)
-4. View stocks filtered by the selected percentage threshold
-5. Click column headers to sort by different values
-6. Each stock shows:
-   - Company logo
-   - Company name and ticker symbol
-   - % Change (for selected time period)
-   - Market Cap
-   - Current Price
-   - Analyst Target
-   - Diff (percentage difference between price and analyst target)
+Stockup uses free, public APIs to fetch real-time stock data:
 
-## Notes
+- **Yahoo Finance** - Primary data source for prices, charts, and company info
+- **Multiple Fallbacks** - Ensures reliability even if one API is down
+- **Smart Caching** - Efficient data fetching with progressive UI updates
+- **Clean Data** - Automatically removes corporate suffixes and formatting issues
 
-- The app fetches market movers from Yahoo Finance screener
-- Falls back to comprehensive stock list if screener is unavailable
-- Company names are cleaned automatically (removes Inc., Corp., Limited, etc. and trailing commas)
-- Multiple API fallbacks ensure every stock has a brand name
-- Threshold and time period preferences are saved automatically using UserDefaults
+## 🛠️ Building from Source
 
-## Discord Bot
+```bash
+# Clone the repo
+git clone https://github.com/loganngarcia/stockup-app.git
+cd stockup-app
 
-This repository also includes a Discord bot for stock alerts. See [discord_stock_alert_bot/README.md](./discord_stock_alert_bot/README.md) for details.
+# Open in Xcode
+open Stockup.xcodeproj
+
+# Or build from command line
+xcodebuild -project Stockup.xcodeproj -scheme Stockup -configuration Debug build
+```
+
+## 📁 Project Structure
+
+```
+stockup-app/
+├── StockupApp.swift          # App entry point
+├── ContentView.swift         # Main UI with sortable table
+├── StockViewModel.swift      # Data fetching & state management
+├── Stock.swift               # Data models
+├── Stockup.xcodeproj/        # Xcode project
+└── discord_stock_alert_bot/  # Discord bot (separate project)
+```
+
+## 🤝 Contributing
+
+We love contributions! Whether it's bug fixes, new features, or documentation improvements, every contribution makes Stockup better. See our [Contributing Guide](CONTRIBUTING.md) for details.
+
+**Quick ways to contribute:**
+- 🐛 Report bugs
+- 💡 Suggest features
+- 📝 Improve documentation
+- 🔧 Submit pull requests
+- ⭐ Star the repository
+
+## 📄 License
+
+Stockup is open source and available under the [MIT License](LICENSE). Feel free to use it, modify it, and share it!
+
+## 🙏 Acknowledgments
+
+- Built with [SwiftUI](https://developer.apple.com/xcode/swiftui/)
+- Data provided by free public APIs (Yahoo Finance, Alpha Vantage, Polygon.io)
+- Logo APIs: IEX Cloud, EOD Historical Data, Clearbit
+
+## 📮 Discord Bot
+
+This repository also includes a Discord bot for automated stock alerts. Check out the [`discord_stock_alert_bot/`](discord_stock_alert_bot/) folder for more information.
+
+## 💬 Support
+
+- 🐛 **Found a bug?** [Open an issue](https://github.com/loganngarcia/stockup-app/issues)
+- 💡 **Have an idea?** [Suggest a feature](https://github.com/loganngarcia/stockup-app/issues)
+- 📧 **Questions?** Check our [Discussions](https://github.com/loganngarcia/stockup-app/discussions)
+
+---
+
+**Made with ❤️ for the macOS community**
+
+*Stockup is not affiliated with any financial institution. This app is for informational purposes only.*
