@@ -11,22 +11,11 @@ import SwiftUI
 @MainActor
 class StockViewModel: ObservableObject {
     @Published var stocks: [Stock] = []
-    @Published var threshold: Double = 0.0
     @Published var timePeriod: TimePeriod = .oneDay
     
     // Helper function to calculate Diff percentage
     private func diffPercentage(for stock: Stock) -> Double {
         return ((stock.analystTarget - stock.currentPrice) / stock.currentPrice) * 100
-    }
-    
-    func filteredStocks(threshold: Double) -> [Stock] {
-        stocks
-            .filter { $0.percentChange >= threshold }
-            .sorted { $0.percentChange > $1.percentChange } // Sort by biggest movers (percentage change)
-    }
-    
-    func updateThreshold(_ value: Double) {
-        threshold = value
     }
     
     func updateTimePeriod(_ period: TimePeriod) {
@@ -627,8 +616,8 @@ class StockViewModel: ObservableObject {
         // Map time period to Yahoo Finance range and interval
         let (range, interval): (String, String) = {
             switch timePeriod {
-            case .fiveMinutes:
-                return ("1d", "1m") // 1 day range with 1 minute intervals for 5 min view
+            case .live:
+                return ("1d", "1m") // 1 day range with 1 minute intervals for LIVE view
             case .oneHour:
                 return ("1d", "5m") // 1 day range with 5 minute intervals for 1 hour view
             case .oneDay:
@@ -682,8 +671,8 @@ class StockViewModel: ObservableObject {
             // For shorter periods, use the first price in the range vs current price
             var percentChange = ((currentPrice - previousClose) / previousClose) * 100
             
-            // For 5MINS and 1H, calculate from the first price in the period
-            if timePeriod == .fiveMinutes || timePeriod == .oneHour {
+            // For LIVE and 1H, calculate from the first price in the period
+            if timePeriod == .live || timePeriod == .oneHour {
                 if let priceHistory = result.indicators?.quote?.first?.close {
                     let validPrices = priceHistory.compactMap { $0 }
                     if let firstPrice = validPrices.first, firstPrice > 0 {
@@ -721,51 +710,87 @@ class StockViewModel: ObservableObject {
         }
     }
     
-    // Get logo URL - use IEX Cloud logo API (free, no API key needed)
+    // Get logo URL - try multiple free APIs (no API keys needed)
+    // Returns the first valid URL - prioritizes most reliable APIs
     private func getLogoURL(symbol: String, companyName: String) -> URL? {
-        // Strategy 1: Use IEX Cloud logo API (free, no API key, reliable)
+        let upperSymbol = symbol.uppercased()
+        
+        // Strategy 1: IEX Cloud logo API (most reliable, free, no API key)
         // Format: https://storage.googleapis.com/iex/api/logos/{SYMBOL}.png
-        // This is IEX Cloud's public logo endpoint - works without authentication
-        if let url = URL(string: "https://storage.googleapis.com/iex/api/logos/\(symbol.uppercased()).png") {
+        if let url = URL(string: "https://storage.googleapis.com/iex/api/logos/\(upperSymbol).png") {
             return url
         }
         
-        // Strategy 2: Use EOD Historical Data (free tier, no key needed for logos)
+        // Strategy 2: EOD Historical Data (free tier, no key needed for logos)
         // Format: https://eodhistoricaldata.com/img/logos/US/{SYMBOL}.png
-        if let url = URL(string: "https://eodhistoricaldata.com/img/logos/US/\(symbol.uppercased()).png") {
+        if let url = URL(string: "https://eodhistoricaldata.com/img/logos/US/\(upperSymbol).png") {
             return url
         }
         
-        // Strategy 3: Use Clearbit Logo API (free, no API key required)
-        // Map of known symbols to their domains for better accuracy
-        let symbolToDomain: [String: String] = [
-            "AAPL": "apple.com", "MSFT": "microsoft.com", "GOOGL": "google.com", "GOOG": "google.com",
-            "AMZN": "amazon.com", "NVDA": "nvidia.com", "META": "meta.com", "TSLA": "tesla.com",
-            "NFLX": "netflix.com", "AMD": "amd.com", "INTC": "intel.com", "JPM": "jpmorganchase.com",
-            "BAC": "bankofamerica.com", "WFC": "wellsfargo.com", "C": "citi.com", "GS": "goldmansachs.com",
-            "V": "visa.com", "MA": "mastercard.com", "UNH": "unitedhealthgroup.com", "JNJ": "jnj.com",
-            "WMT": "walmart.com", "COST": "costco.com", "HD": "homedepot.com", "LOW": "lowes.com",
-            "TGT": "target.com", "NKE": "nike.com", "XOM": "exxonmobil.com", "CVX": "chevron.com",
-            "BA": "boeing.com", "CAT": "caterpillar.com", "GE": "ge.com", "T": "att.com",
-            "VZ": "verizon.com", "DIS": "disney.com", "PG": "pg.com", "KO": "coca-cola.com",
-            "PEP": "pepsico.com", "UPS": "ups.com", "FDX": "fedex.com", "BRK.B": "berkshirehathaway.com",
-            "BKNG": "booking.com", "ABNB": "airbnb.com", "UBER": "uber.com", "LYFT": "lyft.com",
-            "CRWD": "crowdstrike.com", "PANW": "paloaltonetworks.com", "ZS": "zscaler.com",
-            "NET": "cloudflare.com", "SNOW": "snowflake.com", "MDB": "mongodb.com", "PLTR": "palantir.com",
-            "RBLX": "roblox.com", "COIN": "coinbase.com", "SQ": "square.com", "PYPL": "paypal.com",
-            "SHOP": "shopify.com", "ZM": "zoom.us", "UAL": "united.com", "DUK": "duke-energy.com",
-            "LIN": "linde.com", "NEE": "nexteraenergy.com", "CMCSA": "comcast.com", "HON": "honeywell.com"
-        ]
-        
-        // Try Clearbit with known domain
-        if let domain = symbolToDomain[symbol.uppercased()] {
+        // Strategy 3: Try Clearbit Logo API by extracting domain from company name
+        // This attempts to guess domain from company name (e.g., "Roblox Corporation" -> "roblox.com")
+        if let domain = extractDomainFromCompanyName(companyName, symbol: upperSymbol) {
             if let url = URL(string: "https://logo.clearbit.com/\(domain)") {
                 return url
             }
         }
         
-        // Final fallback: IEX Cloud
-        return URL(string: "https://storage.googleapis.com/iex/api/logos/\(symbol.uppercased()).png")
+        // Strategy 4: LogoKit Stock Logo API (free, no API key, comprehensive coverage)
+        // Format: https://img.logokit.com/ticker/{SYMBOL}
+        if let url = URL(string: "https://img.logokit.com/ticker/\(upperSymbol)") {
+            return url
+        }
+        
+        // Final fallback: IEX Cloud (most reliable)
+        return URL(string: "https://storage.googleapis.com/iex/api/logos/\(upperSymbol).png")
+    }
+    
+    // Extract domain from company name for Clearbit API
+    private func extractDomainFromCompanyName(_ companyName: String, symbol: String) -> String? {
+        // Remove common corporate suffixes and clean the name
+        var cleanedName = companyName
+            .replacingOccurrences(of: ", Inc.", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: " Inc.", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: " Inc", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: ", Corp.", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: " Corp.", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: " Corporation", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: ", LLC", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: " LLC", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: ", Ltd.", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: " Ltd.", with: "", options: .caseInsensitive)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Remove trailing commas
+        cleanedName = cleanedName.trimmingCharacters(in: CharacterSet(charactersIn: ","))
+        
+        // Convert to lowercase and replace spaces with nothing
+        let domain = cleanedName
+            .lowercased()
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: "&", with: "")
+            .replacingOccurrences(of: "-", with: "")
+        
+        // Only return if it looks like a valid domain (has letters)
+        if domain.count > 2 && domain.allSatisfy({ $0.isLetter || $0.isNumber }) {
+            return "\(domain).com"
+        }
+        
+        // Fallback: try symbol-based domain (e.g., RBLX -> roblox.com)
+        let symbolDomains: [String: String] = [
+            "RBLX": "roblox.com",
+            "OKLO": "oklo.com",
+            "AAPL": "apple.com",
+            "MSFT": "microsoft.com",
+            "GOOGL": "google.com",
+            "GOOG": "google.com",
+            "AMZN": "amazon.com",
+            "NVDA": "nvidia.com",
+            "META": "meta.com",
+            "TSLA": "tesla.com"
+        ]
+        
+        return symbolDomains[symbol]
     }
     
     // Create realistic stock data with actual current prices (as of Feb 2025)

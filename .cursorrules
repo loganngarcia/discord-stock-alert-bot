@@ -1,5 +1,15 @@
 # Stockup - Product Requirements & Development Guidelines
 
+## Important Instructions
+
+**Always verify changes visually:**
+- Build and run the app after making UI changes
+- **TAKE SCREENSHOTS** - Always take screenshots to verify changes work as intended
+- Don't assume code changes work—verify them in the running app
+- If a change affects the UI, see it with your own eyes before considering it complete
+- Screenshots are required to catch visual bugs, layout issues, and unexpected behavior
+- Open the app and interact with it to ensure functionality matches expectations
+
 ## Product Vision
 
 Stockup is a macOS-native stock monitoring application that provides real-time stock alerts with a beautiful, native interface. The app prioritizes user experience, reliability, and native macOS design patterns.
@@ -74,6 +84,7 @@ Stockup is a macOS-native stock monitoring application that provides real-time s
 - **Graceful Degradation** - Always have fallbacks
 - **User Experience** - Progressive loading, responsive UI, saved preferences
 - **Maintainability** - Clean code, clear structure, good documentation
+- **Visual Verification** - Always build, run, and screenshot to confirm changes work
 
 ## Project Structure
 
