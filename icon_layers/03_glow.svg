@@ -1,7 +1,1 @@
-<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
-  <rect x="132" y="132" width="760" height="760" rx="150" ry="150" 
-        fill="none" 
-        stroke="#FFFFFF" 
-        stroke-width="3" 
-        opacity="0.3"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="760" height="760" x="132" y="132" fill="none" stroke="#FFF" stroke-width="3" opacity=".3" rx="150" ry="150"/></svg>
