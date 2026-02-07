@@ -32,6 +32,9 @@ struct FormattedTextField: NSViewRepresentable {
         if text.isEmpty {
             textView.string = placeholder
             textView.textColor = .placeholderTextColor
+            context.coordinator.isShowingPlaceholder = true
+        } else {
+            context.coordinator.isShowingPlaceholder = false
         }
         
         return scrollView
@@ -43,10 +46,12 @@ struct FormattedTextField: NSViewRepresentable {
         
         // Only update if text actually changed (to avoid cursor jumping)
         if textView.string != text && !text.isEmpty {
+            context.coordinator.isShowingPlaceholder = false
             updateAttributedText(textView, text: text)
-        } else if text.isEmpty && textView.string != placeholder {
+        } else if text.isEmpty && !context.coordinator.isShowingPlaceholder {
             textView.string = placeholder
             textView.textColor = .placeholderTextColor
+            context.coordinator.isShowingPlaceholder = true
         }
     }
     
@@ -90,6 +95,7 @@ struct FormattedTextField: NSViewRepresentable {
     class Coordinator: NSObject, NSTextViewDelegate {
         var parent: FormattedTextField
         var shouldCallOnSubmit = false
+        var isShowingPlaceholder = false
         
         init(_ parent: FormattedTextField) {
             self.parent = parent
@@ -98,22 +104,30 @@ struct FormattedTextField: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             
-            let newText = textView.string
+            var newText = textView.string
             
-            // Handle placeholder
+            // If placeholder is showing and user is typing, remove placeholder from text
+            if isShowingPlaceholder {
+                // Remove placeholder text if it appears in the string
+                if newText.contains(parent.placeholder) {
+                    newText = newText.replacingOccurrences(of: parent.placeholder, with: "")
+                    textView.string = newText
+                }
+                // Clear placeholder state
+                isShowingPlaceholder = false
+                textView.textColor = .labelColor
+            }
+            
+            // Handle empty text - show placeholder
             if newText.isEmpty {
                 textView.string = parent.placeholder
                 textView.textColor = .placeholderTextColor
+                isShowingPlaceholder = true
                 parent.text = ""
                 return
             }
             
-            // Remove placeholder styling if text exists
-            if textView.textColor == .placeholderTextColor {
-                textView.textColor = .labelColor
-            }
-            
-            // Update binding
+            // Update binding with actual text (never include placeholder)
             if parent.text != newText {
                 parent.text = newText
             }
@@ -124,7 +138,27 @@ struct FormattedTextField: NSViewRepresentable {
             }
         }
         
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            
+            // Clear placeholder when user clicks/focuses on the textView
+            if isShowingPlaceholder && textView.string == parent.placeholder {
+                textView.string = ""
+                textView.textColor = .labelColor
+                isShowingPlaceholder = false
+                parent.text = ""
+            }
+        }
+        
         func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            // Clear placeholder when user starts typing (before textDidChange is called)
+            if isShowingPlaceholder && textView.string == parent.placeholder {
+                textView.string = ""
+                textView.textColor = .labelColor
+                isShowingPlaceholder = false
+                parent.text = ""
+            }
+            
             if commandSelector == #selector(NSResponder.insertNewline(_:)) {
                 // Handle Enter key - call onSubmit if provided
                 if let onSubmit = parent.onSubmit {
@@ -138,9 +172,10 @@ struct FormattedTextField: NSViewRepresentable {
             return false
         }
         
+        
         private func updateFormatting(_ textView: NSTextView) {
             let text = textView.string
-            if text.isEmpty || text == parent.placeholder { return }
+            if text.isEmpty || text == parent.placeholder || isShowingPlaceholder { return }
             
             updateAttributedText(textView, text: text)
         }

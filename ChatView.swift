@@ -13,10 +13,17 @@ import AVFoundation
 import Foundation
 
 struct ChatMessage: Identifiable {
-    let id = UUID()
+    let id: UUID
     let content: String
     let isUser: Bool
     let timestamp: Date
+    
+    init(id: UUID = UUID(), content: String, isUser: Bool, timestamp: Date) {
+        self.id = id
+        self.content = content
+        self.isUser = isUser
+        self.timestamp = timestamp
+    }
 }
 
 @MainActor
@@ -99,41 +106,70 @@ class ChatViewModel: ObservableObject {
             }
             
             do {
+                // Create initial AI message placeholder
+                let aiMessageId = UUID()
+                let aiMessageTimestamp = Date()
+                await MainActor.run {
+                    messages.append(ChatMessage(
+                        id: aiMessageId,
+                        content: "",
+                        isUser: false,
+                        timestamp: aiMessageTimestamp
+                    ))
+                }
+                
                 // Use Foundation Models for AI response with streaming
                 let responseStream = session.streamResponse(to: enhancedPrompt)
                 var fullResponse = ""
+                var hasReceivedContent = false
                 
                 // Stream the response incrementally
+                // According to macOS 26 Foundation Models docs, the stream yields snapshots
+                // until completion, then the loop exits normally
                 for try await snapshot in responseStream {
-                    // Get the current text from the snapshot
-                    // Snapshot contains the full response so far
-                    fullResponse = snapshot.content
-                    
-                    // Update the last message with streaming content
-                    await MainActor.run {
-                        if let lastMessage = messages.last, !lastMessage.isUser {
-                            // Update existing AI message
-                            messages[messages.count - 1] = ChatMessage(
-                                content: fullResponse,
-                                isUser: false,
-                                timestamp: lastMessage.timestamp
-                            )
-                        } else {
-                            // Create new AI message
-                            messages.append(ChatMessage(
-                                content: fullResponse,
-                                isUser: false,
-                                timestamp: Date()
-                            ))
+                    // Safely access snapshot content - snapshot is valid during iteration
+                    let snapshotContent = snapshot.content
+                    if !snapshotContent.isEmpty {
+                        fullResponse = snapshotContent
+                        hasReceivedContent = true
+                        
+                        // Update the AI message with streaming content on main actor
+                        await MainActor.run {
+                            // Find and update the AI message by ID
+                            if let index = messages.firstIndex(where: { $0.id == aiMessageId }) {
+                                messages[index] = ChatMessage(
+                                    id: aiMessageId,
+                                    content: fullResponse,
+                                    isUser: false,
+                                    timestamp: aiMessageTimestamp
+                                )
+                            }
                         }
                     }
                 }
                 
+                // Stream completed successfully - ensure final state is set
                 await MainActor.run {
+                    if let index = messages.firstIndex(where: { $0.id == aiMessageId }) {
+                        let finalContent = hasReceivedContent ? fullResponse : "I couldn't generate a response. Please try again."
+                        messages[index] = ChatMessage(
+                            id: aiMessageId,
+                            content: finalContent,
+                            isUser: false,
+                            timestamp: aiMessageTimestamp
+                        )
+                    }
                     isProcessing = false
                 }
             } catch {
-                print("Foundation Models error: \(error)")
+                print("Foundation Models error: \(error.localizedDescription)")
+                // Remove placeholder message if it exists and handle error
+                await MainActor.run {
+                    if let lastMessage = messages.last, !lastMessage.isUser && lastMessage.content.isEmpty {
+                        messages.removeLast()
+                    }
+                    isProcessing = false
+                }
                 // Fallback to intelligent response
                 await generateIntelligentResponse(input)
             }
@@ -365,7 +401,8 @@ struct ChatOverlayView: View {
                                     .id(message.id)
                             }
                             
-                            if chatViewModel.isProcessing {
+                            // Only show "Thinking..." if processing but no AI message exists yet
+                            if chatViewModel.isProcessing && !chatViewModel.messages.contains(where: { !$0.isUser && !$0.content.isEmpty }) {
                                 HStack {
                                     ProgressView()
                                         .scaleEffect(0.8)
@@ -445,17 +482,21 @@ struct ChatBubbleView: View {
                 }
             }
         } else {
-            // AI messages: full width, no bubble, no background, max 768px
-            VStack(alignment: .leading, spacing: 4) {
-                formatMessage(message.content, isUser: false)
-                    .frame(maxWidth: 768)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                
-                Text(message.timestamp, style: .time)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
-                    .padding(.horizontal, 20)
+            // AI messages: left-aligned, full width, no bubble, no background, max 768px
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    formatMessage(message.content, isUser: false)
+                        .frame(maxWidth: 768, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                    
+                    Text(message.timestamp, style: .time)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 20)
+                }
+                Spacer()
             }
         }
     }
@@ -792,6 +833,7 @@ class DictationManager: ObservableObject {
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var audioEngine: AVAudioEngine?
+    private var isStarting = false
     
     init() {
         speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
@@ -806,20 +848,32 @@ class DictationManager: ObservableObject {
     }
     
     func startListening() {
+        // Prevent multiple simultaneous starts
+        guard !isStarting && !isListening else {
+            print("Already starting or listening")
+            return
+        }
+        
         guard let speechRecognizer = speechRecognizer, speechRecognizer.isAvailable else {
             print("Speech recognizer not available")
             return
         }
         
-        // Cancel previous task if exists
-        recognitionTask?.cancel()
-        recognitionTask = nil
+        isStarting = true
+        
+        // Stop any existing recognition first
+        stopListeningInternal()
         
         // Request microphone permission (macOS)
         AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-            guard granted, let self = self else { return }
+            guard let self = self else { return }
             
             DispatchQueue.main.async {
+                self.isStarting = false
+                guard granted else {
+                    print("Microphone permission denied")
+                    return
+                }
                 self.startRecognition()
             }
         }
@@ -827,20 +881,38 @@ class DictationManager: ObservableObject {
     
     private func startRecognition() {
         guard let speechRecognizer = speechRecognizer else { return }
+        guard !isListening else {
+            print("Already listening")
+            return
+        }
         
         do {
+            // Clean up any existing audio engine
+            if let existingEngine = audioEngine {
+                if existingEngine.isRunning {
+                    existingEngine.stop()
+                }
+                existingEngine.inputNode.removeTap(onBus: 0)
+            }
+            
             let audioEngine = AVAudioEngine()
             self.audioEngine = audioEngine
             
             recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-            guard let recognitionRequest = recognitionRequest else { return }
+            guard let recognitionRequest = recognitionRequest else {
+                print("Failed to create recognition request")
+                stopListeningInternal()
+                return
+            }
             
             recognitionRequest.shouldReportPartialResults = true
             
             let inputNode = audioEngine.inputNode
             let recordingFormat = inputNode.outputFormat(forBus: 0)
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-                recognitionRequest.append(buffer)
+            
+            // Install tap safely
+            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+                self?.recognitionRequest?.append(buffer)
             }
             
             audioEngine.prepare()
@@ -852,34 +924,52 @@ class DictationManager: ObservableObject {
             recognitionTask = speechRecognizer.recognitionTask(with: recognitionRequest) { [weak self] result, error in
                 guard let self = self else { return }
                 
-                if let result = result {
-                    DispatchQueue.main.async {
+                DispatchQueue.main.async {
+                    if let result = result {
                         self.recognizedText = result.bestTranscription.formattedString
                     }
-                }
-                
-                if error != nil || result?.isFinal == true {
-                    DispatchQueue.main.async {
-                        self.stopListening()
+                    
+                    if let error = error {
+                        print("Recognition error: \(error.localizedDescription)")
+                        self.stopListeningInternal()
+                    } else if result?.isFinal == true {
+                        self.stopListeningInternal()
                     }
                 }
             }
         } catch {
-            print("Error starting speech recognition: \(error)")
-            stopListening()
+            print("Error starting speech recognition: \(error.localizedDescription)")
+            stopListeningInternal()
         }
     }
     
     func stopListening() {
-        audioEngine?.stop()
-        audioEngine?.inputNode.removeTap(onBus: 0)
-        recognitionRequest?.endAudio()
+        stopListeningInternal()
+    }
+    
+    private func stopListeningInternal() {
+        guard isListening || audioEngine != nil else { return }
+        
+        // Cancel recognition task first
         recognitionTask?.cancel()
-        recognitionRequest = nil
         recognitionTask = nil
+        
+        // End audio request
+        recognitionRequest?.endAudio()
+        recognitionRequest = nil
+        
+        // Stop and clean up audio engine
+        if let audioEngine = audioEngine {
+            if audioEngine.isRunning {
+                audioEngine.stop()
+            }
+            // Remove tap (safe to call even if not installed)
+            audioEngine.inputNode.removeTap(onBus: 0)
+        }
         audioEngine = nil
         
         isListening = false
+        isStarting = false
     }
 }
 
